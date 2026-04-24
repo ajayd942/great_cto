@@ -4,6 +4,157 @@ All notable changes to great_cto are documented here.
 
 ---
 
+## v1.0.101 — 2026-04-24
+
+### Changed — Pareto cut: 22 commands → 15 (7 primary + 8 conditional)
+
+After 100 releases the surface area had drifted past useful. Most of the
+extra commands duplicated data that `/inbox` or `/digest` already compute,
+or were specialist playbooks that fit naturally under a single security
+umbrella.
+
+**Deleted (4 — zero functionality loss):**
+- `/triage` — backlog hygiene (duplicates, stale tasks, unowned P0/P1) is
+  now a section in `/inbox` that fires only when thresholds trip.
+- `/gates` — gate health + drift detection was already in `/inbox`; the
+  dedicated command only repeated the same numbers.
+- `/dora` — the 4 DORA metrics are already computed and emitted by
+  `/digest` on its weekly cadence.
+- `/investigate` — use Superpowers' `systematic-debugging` skill, or
+  spawn the `l3-support` agent with the question. `/inbox` references
+  updated to name the agent directly.
+
+**Merged under `/sec`:**
+- `/threat-model` → `/sec threat [arch-slug]`
+- `/sbom` → `/sec sbom [version]`
+- `/security-incident` → `/sec incident "<desc>"`
+
+`/sec` is now a dispatcher:
+```
+/sec                         # posture metrics (default = status)
+/sec status [days]           # same, explicit
+/sec threat [arch-slug]      # STRIDE threat model
+/sec sbom [version]          # CycloneDX SBOM
+/sec incident "<desc>"       # DORA/GDPR workflow
+/sec rotate                  # overdue secret rotations only
+```
+
+The three playbook files (threat-model, sbom, security-incident) moved
+to `skills/great_cto/playbooks/` — same content, accessed through the
+dispatcher. No behaviour change, just one less mental anchor.
+
+**SessionStart hook now cleans up stale commands** from earlier versions
+(`~/.claude/commands/{triage,gates,dora,investigate,threat-model,sbom,security-incident,update,status,capture,revisit,board-report}.md`).
+Users upgrading from any past version get a clean command list.
+
+### Numbers
+
+| | v1.0.100 | v1.0.101 | Δ |
+|---|---|---|---|
+| Commands total | 22 | 15 | −32% |
+| Commands in README primary | 3 | 3 | — |
+| Lines in `commands/` | 6915 | ~5200 | −25% |
+| Cognitive load (commands to remember) | 22 | 7 (primary + /sec family) | **−68%** |
+
+### What stayed
+
+All 7 agents, all scheduled automation, gate system, PROJECT.md contract,
+LLM router. None of the cuts touched the core pipeline — pure surface-area
+reduction.
+
+### Migration
+
+Run `/doctor` after upgrading to confirm old commands are cleaned from
+`~/.claude/commands/`. Old muscle memory:
+
+- `/triage` → `/inbox` (hygiene section fires automatically)
+- `/gates` → `/inbox` (already shows gate health)
+- `/dora` → `/digest`
+- `/investigate "<q>"` → spawn `l3-support` with the question
+- `/threat-model foo` → `/sec threat foo`
+- `/sbom 1.2.3` → `/sec sbom 1.2.3`
+- `/security-incident "creds leaked"` → `/sec incident "creds leaked"`
+
+---
+
+## v1.0.100 — 2026-04-24
+
+### Added — LLM router (OpenRouter / Kimi K2) as cost saver
+
+Anthropic tokens are the single largest cost of running great_cto on an
+active project. Most agent calls genuinely need Sonnet — architecture, TDD,
+security review — but ~20–30% is grunt work (log triage, summarization,
+POC smoke tests) that Kimi K2 handles fine at ~5× lower cost.
+
+v1.0.100 adds an optional MCP server `great_cto_llm_router` that exposes a
+single tool, `ask_kimi`, to specific agents. Opt-in, zero-config when
+disabled, zero external dependencies.
+
+**New files:**
+- `mcp-servers/llm-router/server.py` — stdlib-only MCP server (Python 3.9+).
+  Implements MCP 2024-11-05 over stdio. Exposes `ask_kimi` + `router_status`.
+  Appends usage JSONL to `.great_cto/llm-router-usage.log` for later cost
+  reporting. Graceful fallback: if `OPENROUTER_API_KEY` is unset, the tool
+  returns a structured `fallback` signal instead of erroring — agents are
+  instructed to do the task natively.
+- `skills/great_cto/references/llm-router.md` — setup, config, which
+  agents use it and when, security caveats, troubleshooting.
+
+**Config (env vars, layered lookup `env > .env.local > ~/.great_cto/secrets.env`):**
+- `OPENROUTER_API_KEY` — required to enable
+- `GREAT_CTO_ROUTER_MODEL` — default `moonshotai/kimi-k2`; any OpenRouter slug
+- `GREAT_CTO_ROUTER_MAX_TOKENS` — default 4096
+- `GREAT_CTO_ROUTER_TIMEOUT` — default 60s
+
+**Wired agents:**
+- `l3-support` — routine log triage, error clustering, stack-trace
+  summarization. P0/P1 reasoning + postmortem writing stay on Claude.
+- `senior-dev` — POC mode only: smoke tests and boilerplate scaffolding.
+  MVP / production code stays on Claude.
+- `qa-engineer` — POC mode only: smoke test generation. Production QA
+  stays on Claude.
+
+**Never delegates**: tech-lead, security-officer, devops, /audit. Critical
+reasoning stays on native Claude by design.
+
+**Onboarding:**
+- `/start` now enforces `.env.local` in `.gitignore`, mentions the router
+  as a one-time optional cost saver (with setup hint), and shows router
+  status in the confirmation line when active.
+- `/doctor` has a new Check 8b that pings OpenRouter `/auth/key` to show
+  live quota, verifies `.env.local` is git-ignored, and warns if not.
+
+**Cost reporting:**
+- `/digest` reads the usage log and emits an `LLM ROUTER` section with
+  calls, tokens, Kimi spend, Sonnet-equivalent cost, and savings.
+
+**Security:**
+- `senior-dev` credential-scan updated to recognize OpenRouter key shape
+  (`sk-or-v1-[a-f0-9]{32,}`) — blocks accidental commits.
+- `.env.local` git-ignore enforced in `/start`, verified in `/doctor`.
+- Doc warns against sending PII / secrets through the router.
+
+**Expected savings**: 20–30% on total LLM spend for active projects.
+Zero overhead for users who don't configure the key — pipeline is
+unchanged.
+
+### Files modified
+- `.claude-plugin/plugin.json` — `mcpServers` block added.
+- `commands/start.md` — Step 5b (gitignore + optional router setup hint).
+- `commands/doctor.md` — Check 8b (router health + key-leak guard).
+- `commands/digest.md` — LLM ROUTER cost report.
+- `agents/l3-support.md` — `ask_kimi` wired for routine triage.
+- `agents/senior-dev.md` — POC-mode delegation + OpenRouter key pattern in
+  credential scan.
+- `agents/qa-engineer.md` — POC-mode delegation.
+
+### When to skip
+- Solo project shipping one feature / week — savings rounding error.
+- Strict-compliance env (HIPAA, PCI) without an OpenRouter BAA.
+- Offline / air-gapped.
+
+---
+
 ## v1.0.99 — 2026-04-24
 
 ### Added — POC mode (hypothesis-driven pipeline extension)
