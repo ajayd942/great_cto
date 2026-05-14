@@ -4,7 +4,7 @@
 
 ## Does it work without an internet connection?
 
-Agents themselves run locally as Claude Code subagents. Only Claude API calls reach Anthropic. No code, telemetry, or memory is sent anywhere else.
+Agents themselves run locally as Claude Code subagents. Only Claude API calls reach Anthropic. No code or memory is sent anywhere else.
 
 ## Is my source code used to train models?
 
@@ -34,7 +34,7 @@ See `/cost` for live spend.
 
 ## What happens to my data when I uninstall?
 
-Plugin state lives in `~/.great_cto/` (global decisions) and `.great_cto/` (per-project). Both are plain markdown — `rm -rf` clears everything. No external services to deauthorize. Telemetry is opt-in and default off; if you opted in, request data deletion via `npx great-cto telemetry whoami` + email to `privacy@greatcto.systems` (see [docs/PRIVACY.md](PRIVACY.md)).
+Plugin state lives in `~/.great_cto/` (global decisions) and `.great_cto/` (per-project). Both are plain markdown — `rm -rf` clears everything. No external services to deauthorize.
 
 ## Why not auto-pilot? Why "two decisions per feature"?
 
@@ -50,13 +50,6 @@ You can still use great_cto with one cofounder via shared git repo + Beads throu
 
 Daily Canary runs Ubuntu + macOS only. Windows isn't actively tested — file an issue if you hit something specific. WSL2 should work fine.
 
-## Why opt-in (not opt-out) telemetry?
-
-OSS-CLI 2026 best practice: ship the plumbing, document, let users decide. Cost of "no data for first 6 months" is low. Cost of one user feeling surprised is high. Full policy: [docs/PRIVACY.md](PRIVACY.md).
-
-## How do I know it works for new users, not just for you?
-
-[Daily Canary](.github/workflows/daily-canary.yml) — every day at 06:00 UTC a fresh CI runner reproduces the new-user cold-install path on Ubuntu × macOS × Node 18.17/20/22 against both the working tree and the published npm artifact. README badge shows live status. Failure auto-opens an issue.
 
 ## Can I read recent decisions / lessons / patterns?
 
