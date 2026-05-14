@@ -17,7 +17,6 @@ import { pickArchetype, suggestCompliance } from "./archetypes.js";
 import { install, findInstalledVersions } from "./installer.js";
 import { enableGreatCto } from "./settings.js";
 import { bootstrap } from "./bootstrap.js";
-import { resolveTelemetryConsent, sendInstallPing, sendUsagePing, telemetrySubcommand } from "./telemetry.js";
 import { shouldUseLlmFallback, suggestArchetypeFromLlm } from "./llm-fallback.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -36,7 +35,7 @@ function getCliVersion(): string {
 }
 
 interface CliArgs {
-  command: "init" | "help" | "version" | "board" | "register" | "scan" | "list-rules" | "ci" | "mcp" | "adapt" | "serve" | "webhook" | "report" | "telemetry" | "chat-only-hint";
+  command: "init" | "help" | "version" | "board" | "register" | "scan" | "list-rules" | "ci" | "mcp" | "adapt" | "serve" | "webhook" | "report" | "chat-only-hint";
   dir: string;
   positional: string[];
   yes: boolean;
@@ -46,7 +45,6 @@ interface CliArgs {
   version: string | null;
   boardPort: number;
   boardNoOpen: boolean;
-  noTelemetry: boolean;
   useLlm: boolean;        // --use-llm: force LLM even on high confidence
   noLlm: boolean;         // --no-llm: skip LLM even on low confidence
 }
@@ -62,7 +60,6 @@ function parseArgs(argv: string[]): CliArgs {
     force: false,
     archetype: null,
     version: null,
-    noTelemetry: false,
     useLlm: false,
     noLlm: false,
     positional: [],
@@ -80,7 +77,6 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--version-tag") args.version = argv[++i] ?? null;
     else if (a === "--port") args.boardPort = parseInt(argv[++i] ?? "3141", 10);
     else if (a === "--no-open") args.boardNoOpen = true;
-    else if (a === "--no-telemetry") args.noTelemetry = true;
     else if (a === "--use-llm") args.useLlm = true;
     else if (a === "--no-llm") args.noLlm = true;
     else if (a === "board") args.command = "board";
@@ -93,7 +89,6 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "serve") args.command = "serve";
     else if (a === "webhook") args.command = "webhook";
     else if (a === "report") args.command = "report";
-    else if (a === "telemetry") args.command = "telemetry";
     // Slash-commands surfaced as CLI subcommands so users get a clear hint
     // instead of a confusing usage error. These work only in the chat plugin.
     else if (
@@ -411,8 +406,6 @@ ${bold("Options:")}
                          even when heuristic confidence is high
       --no-llm           Skip LLM suggestion (run heuristic only)
                          Or set ${cyan("GREATCTO_NO_LLM=1")}
-      --no-telemetry     Skip anonymous install ping
-                         Or set ${cyan("GREATCTO_NO_TELEMETRY=1")}
   -h, --help             Show this help
   -v, --version          Show great-cto CLI version
 
@@ -765,17 +758,6 @@ async function runInit(args: CliArgs): Promise<number> {
     log(`  ${dim("PROJECT.md already exists at")} ${bs.projectMdPath} ${dim("— kept as-is")}`);
   }
 
-  // ── telemetry (opt-in, fire-and-forget) ─────────────────
-  try {
-    const consent = resolveTelemetryConsent(args.noTelemetry);
-    // Don't await — finish CLI banner first; ping flies in background
-    void sendInstallPing({
-      cliVersion: getCliVersion(),
-      archetype: archetype as string,
-      consent,
-    });
-  } catch { /* never block install on telemetry */ }
-
   // ── done ─────────────────────────────────────────────────
   log("");
   log(green(bold("✓ great_cto is ready.")));
@@ -792,21 +774,6 @@ async function runInit(args: CliArgs): Promise<number> {
   return 0;
 }
 
-/**
- * Exit with telemetry ping for a subcommand. Fire-and-forget — we wait up
- * to 200ms for the ping to land before exiting so it doesn't get killed by
- * process termination. Honours all telemetry opt-out signals.
- */
-async function exitWithTelemetry(subcommand: string, code: number): Promise<never> {
-  try {
-    const promise = sendUsagePing({ cliVersion: getCliVersion(), subcommand, exitCode: code });
-    // 1.2s — enough for transcontinental hop to CF Worker (typical ≤500ms)
-    // while still bounded so we never block exit on a flaky network.
-    await Promise.race([promise, new Promise(r => setTimeout(r, 1200))]);
-  } catch { /* never block exit */ }
-  process.exit(code);
-}
-
 async function main(): Promise<void> {
   const rawArgv = process.argv.slice(2);
   const args = parseArgs(rawArgv);
@@ -818,7 +785,7 @@ async function main(): Promise<void> {
   if (args.command === "scan") {
     try {
       const code = await runScan(args, rawArgv);
-      await exitWithTelemetry("scan", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
@@ -855,7 +822,7 @@ async function main(): Promise<void> {
     try {
       const { runCi, parseCiArgs } = await import("./ci.js");
       const code = await runCi(parseCiArgs(rawArgv));
-      await exitWithTelemetry("ci", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
@@ -868,7 +835,7 @@ async function main(): Promise<void> {
       const portArg = rawArgv.indexOf("--port");
       const port = portArg >= 0 ? parseInt(rawArgv[portArg + 1] ?? "8765", 10) : 8765;
       const code = await runMcp({ mode: sse ? "sse" : "stdio", port, version: getCliVersion() });
-      await exitWithTelemetry("mcp", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
@@ -889,7 +856,7 @@ async function main(): Promise<void> {
         dryRun: rawArgv.includes("--dry-run"),
         cwd: args.dir,
       });
-      await exitWithTelemetry("adapt", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
@@ -903,7 +870,7 @@ async function main(): Promise<void> {
         noLog: rawArgv.includes("--no-log"),
         insecure: rawArgv.includes("--insecure"),
       });
-      await exitWithTelemetry("serve", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
@@ -918,7 +885,7 @@ async function main(): Promise<void> {
         process.exit(2);
       }
       const code = await runWebhookCli(parsed);
-      await exitWithTelemetry("webhook", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
@@ -948,18 +915,11 @@ async function main(): Promise<void> {
         process.exit(2);
       }
       const code = await runReport(parsed);
-      await exitWithTelemetry("report", code);
+      process.exit(code);
     } catch (e) {
       error((e as Error).message);
       process.exit(2);
     }
-  }
-  if (args.command === "telemetry") {
-    // `great-cto telemetry on|off|status|whoami` — opt-in/out + introspection
-    const sub = args.positional[0] || "status";
-    const r = telemetrySubcommand(sub);
-    process.stdout.write(r.output);
-    process.exit(r.exitCode);
   }
   if (args.command === "version") {
     // Version resolved in index.mjs or from package.json at runtime

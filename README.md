@@ -12,7 +12,6 @@ You're the solo CTO. You're also the bottleneck. **GreatCTO is 34 specialist age
 
 [![npm](https://img.shields.io/npm/v/great-cto?label=npx%20great-cto&color=cb3837)](https://www.npmjs.com/package/great-cto)
 [![npm downloads](https://img.shields.io/npm/dm/great-cto?color=cb3837&label=downloads)](https://www.npmjs.com/package/great-cto)
-[![Daily Canary](https://img.shields.io/github/actions/workflow/status/avelikiy/great_cto/daily-canary.yml?branch=main&label=daily%20canary&logo=github)](https://github.com/avelikiy/great_cto/actions/workflows/daily-canary.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://claude.com/plugins)
 
@@ -180,8 +179,6 @@ npx great-cto adapt --platform all
 | Aider | .aider.conf.yml + CONVENTIONS.md + AGENTS.md | ✓ |
 | Continue | .continue/rules.md + AGENTS.md | ✓ |
 
-"Daily verified" = `scripts/canary.sh` step 7 runs in [GitHub Actions every 06:00 UTC](.github/workflows/daily-canary.yml) on Ubuntu × macOS × Node 18.17/20/22 against both working tree and published npm. If `adapt --platform <host>` regresses, canary opens an issue.
-
 ## CI integration
 
 Drop into any GitHub Actions workflow:
@@ -217,7 +214,7 @@ Full setup + internal MCPs (Grafana, LLM router, Beads): [docs/MCP.md](docs/MCP.
 
 **Is my source code used to train models?** No. Claude API zero-retention by default for paying customers. great_cto adds nothing.
 
-**Cursor / Aider / Codex support?** All five via `adapt --platform <host>`. Daily canary verifies.
+**Cursor / Aider / Codex support?** All five via `adapt --platform <host>`.
 
 **How do you keep token costs down?** Haiku-by-default + Kimi K2 router for triage (60–80% savings) + cost-guard hook.
 
@@ -239,9 +236,9 @@ The plugin runs inside Claude Code (or any MCP-capable host); 34 agents are mark
 
 ## Roadmap
 
-- **v2.8** — telemetry on lesson quality (track which lessons agents cite vs ignore)
+- **v2.8** — lesson-quality tracking (which lessons agents cite vs ignore)
 - **v2.9** — auto-promotion: high-impact decisions → reusable skills
-- **v3.0** — clean release-only commit history + custom domain `telemetry.greatcto.systems`
+- **v3.0** — clean release-only commit history
 
 [Vote on the next feature →](https://github.com/avelikiy/great_cto/discussions/categories/ideas)
 
