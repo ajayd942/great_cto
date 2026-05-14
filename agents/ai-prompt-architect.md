@@ -9,6 +9,7 @@ effort: HIGH
 memory: project
 color: cyan
 skills:
+  - archetype-review-base
   - prose-style
   - skeptical-triage
   - beads

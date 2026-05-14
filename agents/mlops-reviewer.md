@@ -12,6 +12,7 @@ effort: HIGH
 memory: project
 color: violet
 skills:
+  - archetype-review-base
   - superpowers:receiving-code-review
   - prose-style
   - skeptical-triage

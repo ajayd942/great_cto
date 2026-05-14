@@ -12,6 +12,7 @@ effort: HIGH
 memory: project
 color: gold
 skills:
+  - archetype-review-base
   - superpowers:receiving-code-review
   - prose-style
 applies_to: [insurance]

@@ -12,6 +12,7 @@ effort: HIGH
 memory: project
 color: cyan
 skills:
+  - archetype-review-base
   - superpowers:receiving-code-review
   - prose-style
   - skeptical-triage
