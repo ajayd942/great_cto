@@ -9,6 +9,7 @@ effort: MEDIUM
 memory: project
 color: green
 skills:
+  - archetype-review-base
   - prose-style
   - superpowers:test-driven-development
   - beads

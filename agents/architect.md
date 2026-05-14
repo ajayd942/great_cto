@@ -644,6 +644,22 @@ If a matched pattern has `source_type: arch-rework`, treat it as a hard constrai
    - `strict`: gate:arch is mandatory — senior-dev cannot start without CTO approval
    - `auto`: gate:arch is advisory — senior-dev may start if no P0 risks identified in ARCH doc
 
+   **AI archetype cost gate** — if `archetype` is `ai-system`, `agent-product`, or `mlops`,
+   ALSO create `gate:cost` to surface the per-request LLM burn forecast for CTO approval
+   BEFORE any production traffic. Use skill `cost-model` for the forecast format.
+
+   ```bash
+   ARCHETYPE=$(grep "^archetype:" .great_cto/PROJECT.md | awk '{print $2}')
+   if [[ "$ARCHETYPE" =~ ^(ai-system|agent-product|mlops)$ ]]; then
+     bd create "gate:cost — <feature> projected LLM monthly burn" \
+       --type task --priority 0 --label gate
+   fi
+   ```
+
+   The cost-gate ARCH section must include a 3-row table: monthly cost at
+   1K/10K/100K req/day. CTO sets the recommended cap; alerts fire above
+   cap. See `skills/cost-model/SKILL.md` for the format.
+
    **MANDATORY — create gate first:**
    ```bash
    bd create "gate:arch — <feature> architecture review" --type task --priority 0 --label gate
