@@ -11,8 +11,8 @@ color: yellow
 skills:
   - superpowers:writing-plans
   - superpowers:requesting-code-review
-  - anthropic-skills:system-architect
-  - anthropic-skills:adr
+  - superpowers:brainstorming
+  - architecture-patterns
   - beads
   - skeptical-triage
   - done-blocked

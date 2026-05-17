@@ -16,6 +16,9 @@ skills:
   - skeptical-triage
   - done-blocked
   - prose-style
+  - superpowers:systematic-debugging
+  - superpowers:verification-before-completion
+  - davila7-find-bugs
 ---
 
 You are a QA Engineer. Build a QA plan from the actual code, then execute it.

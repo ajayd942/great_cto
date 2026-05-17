@@ -215,7 +215,7 @@ JSON
 # matching list and decides which to Read.
 read -r -d '' AGENT_SKILLS <<'JSON' || true
   "architect": {
-    "_default":          ["pre-mortem", "risk-register", "vendors", "cost-model", "anti-patterns", "cost-discipline", "decision-log", "secure-sdlc"],
+    "_default":          ["pre-mortem", "risk-register", "vendors", "cost-model", "anti-patterns", "cost-discipline", "decision-log", "secure-sdlc", "superpowers:brainstorming"],
     "ai-system":         ["+ARCH-ai", "+ai-pack", "+THREAT-MODEL-AI", "+llm-router"],
     "agent-product":     ["+ARCH-ai", "+agent-pack", "+THREAT-MODEL-AI"],
     "commerce":          ["+ARCH-default", "+commerce-pack", "+PCI-DSS-SAQ-A"],
@@ -235,7 +235,7 @@ read -r -d '' AGENT_SKILLS <<'JSON' || true
     "infra":             ["+ARCH-default", "+infra-pack"]
   },
   "senior-dev": {
-    "_default":          ["superpowers:test-driven-development", "knowledge-extraction", "poc-mode"],
+    "_default":          ["superpowers:test-driven-development", "superpowers:systematic-debugging", "superpowers:verification-before-completion", "superpowers:receiving-code-review", "knowledge-extraction", "poc-mode"],
     "ai-system":         ["+agent-pack", "+ADR-LLM", "+ADR-PROMPT", "+ai-pack"],
     "agent-product":     ["+agent-pack", "+ADR-LLM", "+ADR-PROMPT"],
     "commerce":          ["+commerce-pack"],
@@ -254,7 +254,7 @@ read -r -d '' AGENT_SKILLS <<'JSON' || true
     "infra":             ["+infra-pack"]
   },
   "qa-engineer": {
-    "_default":          ["agent-style", "knowledge-extraction"],
+    "_default":          ["agent-style", "knowledge-extraction", "superpowers:systematic-debugging", "superpowers:verification-before-completion"],
     "ai-system":         ["+EVAL-template", "+ai-pack"],
     "agent-product":     ["+EVAL-template", "+agent-pack"],
     "commerce":          ["+commerce-pack"],
@@ -270,7 +270,7 @@ read -r -d '' AGENT_SKILLS <<'JSON' || true
     "web-app":           ["+web-pack"]
   },
   "security-officer": {
-    "_default":          ["security-tiers", "secure-sdlc", "agent-security", "pre-mortem", "risk-register", "vendors", "waivers", "sec-metrics"],
+    "_default":          ["security-tiers", "secure-sdlc", "agent-security", "pre-mortem", "risk-register", "vendors", "waivers", "sec-metrics", "superpowers:verification-before-completion"],
     "ai-system":         ["+THREAT-MODEL-AI", "+agent-pack", "+ai-pack"],
     "agent-product":     ["+THREAT-MODEL-AI", "+agent-pack"],
     "commerce":          ["+PCI-DSS-SAQ-A", "+PCI-DSS-SAQ-D", "+commerce-pack"],
@@ -306,7 +306,7 @@ read -r -d '' AGENT_SKILLS <<'JSON' || true
     "iot-embedded":      ["+infra-pack"]
   },
   "project-auditor": {
-    "_default":          ["agent-style", "knowledge-extraction", "onboarding", "anti-patterns", "decision-log", "vendors", "cost-model", "risk-register"],
+    "_default":          ["agent-style", "knowledge-extraction", "onboarding", "anti-patterns", "decision-log", "vendors", "cost-model", "risk-register", "superpowers:systematic-debugging"],
     "ai-system":         ["+agent-pack", "+ai-pack"],
     "agent-product":     ["+agent-pack"],
     "commerce":          ["+commerce-pack"],
