@@ -1,6 +1,6 @@
 ---
 name: performance-engineer
-description: Performance specialist. Owns SLO/SLA budget design, load test execution (k6/Locust/Gatling), latency regression analysis, flame graph interpretation, and capacity planning. Runs after senior-dev, before QA. Writes docs/performance/PERF-{slug}.md. Activated when performance-sla is set in PROJECT.md, or archetype is data-platform / enterprise / commerce.
+description: Performance specialist. Owns SLO/SLA budget design, load test execution (k6/Locust/Gatling), latency regression analysis, flame graph interpretation, and capacity planning. Runs after senior-dev, before QA. Writes docs/performance/PERF-{slug}.md. Activated when performance-sla is set in PROJECT.md, or archetype is data-platform / enterprise / commerce / web-service / streaming.
 model: sonnet
 advisor-model: claude-opus-4-7
 advisor-max-uses: 1
@@ -59,7 +59,7 @@ ARCHETYPE=$(grep "^archetype:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $
 PERF_SLA=$(grep "^performance-sla:" .great_cto/PROJECT.md 2>/dev/null | sed 's/performance-sla: //')
 HAS_IMPL=$(ls src/ app/ lib/ 2>/dev/null | head -1)
 
-if [ -n "$PERF_SLA" ] || echo "$ARCHETYPE" | grep -qE "data-platform|enterprise|commerce"; then
+if [ -n "$PERF_SLA" ] || echo "$ARCHETYPE" | grep -qE "data-platform|enterprise|commerce|web-service|streaming"; then
   echo "performance-engineer: ACTIVE — archetype=$ARCHETYPE sla=$PERF_SLA"
 else
   echo "performance-engineer: SKIP — no performance-sla and archetype not performance-critical"
