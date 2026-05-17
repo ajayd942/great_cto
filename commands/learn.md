@@ -74,6 +74,17 @@ To inspect what was considered, check the SessionEnd snapshot:
   ls -t .great_cto/logs/session-*-end.md | head -1 | xargs cat
 ```
 
+## Step 4 — Clear the learn-pending marker
+
+The SessionEnd hook drops `.great_cto/.learn-pending` so unlearned sessions
+surface at the next session start. Now that the learner has run, clear it:
+
+```bash
+rm -f .great_cto/.learn-pending
+```
+
+Do this whether `N>0` or `N=0` — the session has been processed either way.
+
 ## Notes
 
 - The learner is **append-only** to `lessons.md` — it never edits or removes existing entries

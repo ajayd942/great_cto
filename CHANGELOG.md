@@ -4,6 +4,35 @@ All notable changes to great_cto are documented here.
 
 ---
 
+## Unreleased
+
+### Fixed — empty memory files / board memory tab
+
+The board's memory tab showed blank files even after heavy multi-pass
+work. Root cause: `brain.md` is only written by `/digest` and `lessons.md`
+only by `/learn` — neither ran, and nothing seeded the files or told the
+user to run them. The `continuous-learner` agent description also claimed
+it was "auto-triggered by the SessionEnd hook", which has never been true
+(a hook runs sandboxed, with no agent access).
+
+- **`session-end.mjs`** now seeds `.great_cto/brain.md` and
+  `.great_cto/lessons.md` with honest placeholder content if they are
+  missing, so the memory tab is never a blank/missing file.
+- **`session-end.mjs`** drops a `.great_cto/.learn-pending` marker (only
+  when the session did real work) listing the session log.
+- **`SessionStart` hook** surfaces `→ N session(s) not yet learned —
+  run /learn` when the marker is present.
+- **`/learn`** now clears the `.learn-pending` marker (new Step 4).
+- Corrected the misleading "auto-triggered by SessionEnd hook" claim in
+  `agents/continuous-learner.md`, `docs/HOOKS.md` and `docs/LEARNING.md`
+  — the learner is run by `/learn` (or `/save`); the hook only makes the
+  need visible.
+- Added `tests/hooks/session-end.test.mjs`.
+
+No breaking changes.
+
+---
+
 ## v2.8.4 — 2026-05-15
 
 ### 10 more bugs fixed (security + analytics) since v2.8.3
