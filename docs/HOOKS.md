@@ -7,7 +7,7 @@ great_cto uses [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-cod
 | Event | Matcher | Hook | What it does |
 |---|---|---|---|
 | `SessionStart` | — | inline (plugin.json) | Loads PROJECT.md, syncs agents/commands, primes context |
-| `SessionEnd` | — | `session-end.mjs` | Writes session snapshot to `.great_cto/logs/` |
+| `SessionEnd` | — | `session-end.mjs` | Writes session snapshot to `.great_cto/logs/`, seeds `brain.md`/`lessons.md` if missing, drops a `.learn-pending` marker |
 | `PreToolUse` | `Bash` | inline | Blocks dangerous bash (rm -rf, force push, DROP TABLE, etc.) |
 | `PreToolUse` | `Edit\|Write\|MultiEdit` | `secret-scan.mjs` | Blocks writes containing hardcoded API keys |
 | `PostToolUse` | `Write\|Edit\|MultiEdit` | inline + `format-check.mjs` | Logs writes + auto-formats by extension |
@@ -81,9 +81,24 @@ Captures a snapshot at session end:
 - Git state (branch, last commit, uncommitted files, commits in last 8h)
 - Beads state (open / blocked tasks)
 - Recent cost log
-- Phase 2 (v1.2.0) will additionally trigger the continuous-learner agent
 
 Writes to `.great_cto/logs/session-YYYY-MM-DD-HHMM-end.md`.
+
+It also:
+
+- **Seeds `.great_cto/brain.md` and `.great_cto/lessons.md`** with honest
+  placeholder content if they don't exist — so the board's memory tab is
+  never a blank/missing file; the seeded file states how to populate it
+  (`/digest` for brain, `/learn` for lessons).
+- **Drops a `.great_cto/.learn-pending` marker** (only when the session
+  did real work — commits or uncommitted changes) listing the session
+  log. The next `SessionStart` reads it and prints
+  `→ N session(s) not yet learned — run /learn`. `/learn` clears it.
+
+It does **not** run the continuous-learner agent. A SessionEnd hook
+executes in a sandbox with no access to the agent fleet, so it cannot do
+the extraction — `lessons.md` is populated when the user runs `/learn`
+(or `/save`). This hook only makes that need visible.
 
 **Opt-out:**
 ```bash

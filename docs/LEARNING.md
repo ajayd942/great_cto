@@ -1,15 +1,24 @@
 # Continuous Learning
 
-great_cto v1.2.0 added a **two-tier learning loop** that auto-extracts patterns from each session and re-uses them in future sessions.
+great_cto has a **two-tier learning loop** that extracts patterns from a
+session and re-uses them in future sessions.
+
+> **Not fully automatic.** A SessionEnd hook runs in a sandbox with no
+> access to the agent fleet, so it cannot run the continuous-learner. The
+> extraction step is triggered by the user with **`/learn`** (or `/save`).
+> The SessionEnd hook makes that need visible — it seeds the memory files
+> and drops a `.learn-pending` marker the next session start surfaces.
 
 ## The pipeline
 
 ```
 Session ends
    ↓
-SessionEnd hook captures snapshot + registers project
+SessionEnd hook: snapshot + seed brain.md/lessons.md + drop .learn-pending marker
    ↓
-continuous-learner agent reads transcript + git + verdicts
+Next session start: "→ N session(s) not yet learned — run /learn"
+   ↓
+User runs /learn  →  continuous-learner agent reads transcript + git + verdicts
    ↓
 Extracts ≤3 lessons per session → .great_cto/lessons.md      (PROJECT-LOCAL)
    ↓
