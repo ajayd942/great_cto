@@ -18,6 +18,15 @@ skills:
   - superpowers:test-driven-development
   - superpowers:subagent-driven-development
   - superpowers:requesting-code-review
+  - superpowers:receiving-code-review
+  - superpowers:systematic-debugging
+  - superpowers:verification-before-completion
+  - architecture-patterns
+  - java-junit
+  - postgresql-optimization
+  - vercel-react-best-practices
+  - fastapi-python
+  - spring-boot-testing
   - beads
   - done-blocked
 ---
