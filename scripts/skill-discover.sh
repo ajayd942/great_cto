@@ -255,13 +255,22 @@ read -r -d '' AGENT_SKILLS <<'JSON' || true
   },
   "code-reviewer": {
     "_default":          ["anti-patterns", "knowledge-extraction", "superpowers:systematic-debugging", "superpowers:verification-before-completion"],
-    "ai-system":         ["+agent-pack", "+ai-pack"],
-    "agent-product":     ["+agent-pack"],
+    "ai-system":         ["+agent-pack", "+ADR-LLM", "+ADR-PROMPT", "+ai-pack"],
+    "agent-product":     ["+agent-pack", "+ADR-LLM", "+ADR-PROMPT"],
     "commerce":          ["+commerce-pack"],
     "web3":              ["+web3-pack"],
+    "browser-extension": ["+browser-extension-pack"],
+    "game":              ["+game-pack"],
+    "regulated":         ["+enterprise-pack"],
+    "fintech":           ["+enterprise-pack"],
+    "iot-embedded":      ["+infra-pack"],
     "data-platform":     ["+data-pack"],
     "mobile-app":        ["+mobile-pack"],
-    "enterprise":        ["+enterprise-pack"]
+    "library":           ["+library-pack"],
+    "enterprise":        ["+enterprise-pack"],
+    "web-app":           ["+web-pack"],
+    "devtools":          ["+devtools-pack"],
+    "infra":             ["+infra-pack"]
   },
   "qa-engineer": {
     "_default":          ["agent-style", "knowledge-extraction", "superpowers:systematic-debugging", "superpowers:verification-before-completion"],

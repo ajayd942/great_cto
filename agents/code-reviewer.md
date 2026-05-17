@@ -74,8 +74,10 @@ Do not attempt partial work. A code review with no Bash cannot read the diff.
 ## When you're invoked
 
 You run after senior-dev closes an implementation task and before qa-engineer.
-You review **every feature** — you are not archetype-gated. The pipeline order is
-already documented in `skills/great_cto/SKILL.md`:
+The gate itself always runs — code-reviewer reviews **every feature** regardless
+of archetype — while skill selection is archetype-tuned (Step 0/0b reads the
+archetype only to pick which SKILL.md files to load, never to skip the review).
+The pipeline order is already documented in `skills/great_cto/SKILL.md`:
 
 ```
 architect → pm → [pre-impl reviewers] → senior-dev → code-reviewer → qa-engineer → security-officer → devops
@@ -285,8 +287,11 @@ Log the verdict (use `APPROVED` for PASS, `REJECTED` for FAIL — matches
 `agents/_shared/verdict-format.md`):
 
 ```bash
-bash scripts/log-verdict.sh code-reviewer <APPROVED|REJECTED> <cost_usd> \
-  feature=<slug> cr=docs/code-reviews/CR-<slug>.md
+mkdir -p .great_cto/verdicts
+printf '%s code-reviewer %s findings=Crit:%d,High:%d,Med:%d,Low:%d feature=%s cr=%s\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "[APPROVED|REJECTED]" <Crit> <High> <Med> <Low> \
+  "<slug>" "docs/code-reviews/CR-<slug>.md" \
+  >> .great_cto/verdicts/code-reviewer.log
 ```
 
 ## Reporting Contract
