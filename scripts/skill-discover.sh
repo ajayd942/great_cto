@@ -253,6 +253,16 @@ read -r -d '' AGENT_SKILLS <<'JSON' || true
     "devtools":          ["+devtools-pack"],
     "infra":             ["+infra-pack"]
   },
+  "code-reviewer": {
+    "_default":          ["anti-patterns", "knowledge-extraction", "superpowers:systematic-debugging", "superpowers:verification-before-completion"],
+    "ai-system":         ["+agent-pack", "+ai-pack"],
+    "agent-product":     ["+agent-pack"],
+    "commerce":          ["+commerce-pack"],
+    "web3":              ["+web3-pack"],
+    "data-platform":     ["+data-pack"],
+    "mobile-app":        ["+mobile-pack"],
+    "enterprise":        ["+enterprise-pack"]
+  },
   "qa-engineer": {
     "_default":          ["agent-style", "knowledge-extraction", "superpowers:systematic-debugging", "superpowers:verification-before-completion"],
     "ai-system":         ["+EVAL-template", "+ai-pack"],
