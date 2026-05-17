@@ -126,7 +126,7 @@ wrangler d1 execute great-cto-telemetry --remote --file=schema.sql
 # Email-provider configuration (Resend, transactional only — we own the audience in D1):
 wrangler secret put EMAIL_PROVIDER   # set to: resend
 wrangler secret put EMAIL_API_KEY    # Resend API key (send-only is enough)
-wrangler secret put EMAIL_FROM       # e.g. "GreatCTO <hi@greatcto.systems>" (must be on verified domain)
+wrangler secret put EMAIL_FROM       # e.g. "GreatCTO <hi@updates.greatcto.systems>" (must be on verified domain)
 # Optional welcome-email overrides:
 wrangler secret put EMAIL_WELCOME_SUBJECT
 wrangler secret put EMAIL_WELCOME_HTML
