@@ -618,6 +618,7 @@ printf '%s qa-engineer %s coverage=%s bugs=P0:%d,P1:%d,P2:%d\n' \
 ```bash
 GATE_ID=$(bd create "gate:ship — <feature> security + deploy approval" \
   --type task --priority 0 --label gate 2>/dev/null | grep -oE '[0-9]+' | head -1)
+GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
 echo "gate:ship created: ID=$GATE_ID"
 ```
 **If bd unavailable**: append to `.great_cto/tasks.md`:
@@ -635,7 +636,11 @@ Requirements: N/M covered | Critical paths: N/M passed
 ```
 
 If FAIL → "Deploy blocked. Bug tasks created. gate:ship NOT created."
-If PASS → "gate:ship created (ID: <id>). Ready for security review."
+If PASS:
+  - `gate-policy: auto` → "gate:ship created (ID: $GATE_ID). Ready for security review."
+  - `gate-policy: explicit` → "gate:ship created (ID: $GATE_ID). security-officer will audit; after that, CTO must run `/gate approve $GATE_ID` before devops deploys."
+
+Print the literal `$GATE_ID` value so the CTO can copy-paste the command.
 
 ## Reporting Contract
 

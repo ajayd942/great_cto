@@ -68,6 +68,12 @@ if ! grep -q "^project_size:" "$PROJECT_FILE" 2>/dev/null; then
   PATCH="${PATCH}project_size: small\n"
 fi
 
+# gate-policy (v1.0.182+) — orthogonal gate handoff discipline
+if ! grep -q "^gate-policy:" "$PROJECT_FILE" 2>/dev/null; then
+  echo "  + gate-policy: auto  (added — set to 'explicit' to require /gate approve <id> for every gate)"
+  PATCH="${PATCH}gate-policy: auto\n"
+fi
+
 # packs (v2.8+) — opt-in to domain pack overlays
 if ! grep -q "^packs:" "$PROJECT_FILE" 2>/dev/null; then
   PLUGIN_DIR=$(ls -d "$HOME"/.claude/plugins/cache/local/great_cto/*/ 2>/dev/null | sort -V | tail -1 | sed 's|/$||')

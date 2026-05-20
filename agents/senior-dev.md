@@ -314,9 +314,14 @@ Schema: `skills/great_cto/references/knowledge-extraction.md`
 1b. **Verify gate:arch before claiming any task** (skip for `nano`):
    ```bash
    ARCH_GATE=$(bd list --label gate --status open 2>/dev/null | grep "gate:arch" | head -1)
+   ARCH_GATE_ID=$(echo "$ARCH_GATE" | awk '{print $1}')
+   GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
    ```
-   If gate:arch is still open → **stop**. Tell CTO: "gate:arch not yet approved — architecture review pending. Run `/inbox` to approve, then re-invoke senior-dev."
-   Only proceed when no open gate:arch exists for this feature.
+   If gate:arch is still open → **stop**. Tell the CTO:
+   - `gate-policy: explicit`: "gate:arch not yet approved. Run `/gate approve $ARCH_GATE_ID` to advance the pipeline, then re-invoke senior-dev."
+   - `gate-policy: auto`: "gate:arch not yet approved — architecture review pending. Run `/inbox` to approve, then re-invoke senior-dev."
+
+   Substitute the literal `$ARCH_GATE_ID` value in the message. Only proceed when no open gate:arch exists for this feature.
 
 2. **Claim**: `bd ready` → `bd show <id>` → `bd claim <id>`
 3. **Branch**: Create feature branch before any code:

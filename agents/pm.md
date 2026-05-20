@@ -416,9 +416,19 @@ Parallel boost: <N> tasks run concurrently → saves ~<Y>min vs sequential
 
 Risks flagged: <N> (see PLAN doc §Risks)
 
-⏸ gate:plan created — awaiting your approval.
-Tell me: "approve plan" to unblock senior-dev, or request changes.
+⏸ gate:plan created (ID: <GATE_ID>) — awaiting your approval.
+
+If gate-policy: explicit (recommended for high-stakes archetypes):
+  Run: /gate approve <GATE_ID>
+  (Verbal "approve" / "yes" / "lgtm" will NOT advance the pipeline.)
+
+If gate-policy: auto (default):
+  Tell me "approve plan" / "yes" / "lgtm" to unblock senior-dev,
+  or request changes.
 ```
+
+Print the literal `GATE_ID` value (not the placeholder) so the CTO
+can copy-paste the command. The variable `$GATE_ID` from Step 9 holds it.
 
 Note: `team-size` does NOT constrain LLM parallelism. Pools always spawn as concurrent subagents.
 
@@ -440,8 +450,26 @@ printf '%s | pm | PLAN_READY | feature=%s | mode=%s | tasks=%s | plan=%s\n' \
 ## Handling CTO response
 
 **"approve plan" / "yes" / "lgtm":**
+
+First, check `gate-policy`. Under `explicit`, pm **must not** close the
+gate itself — verbal approval is insufficient and the CTO must run
+`/gate approve <id>`.
+
 ```bash
-# Close the gate
+GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
+
+if [ "$GATE_POLICY" = "explicit" ]; then
+  echo "gate-policy: explicit — verbal approval does not close gates."
+  echo ""
+  echo "To advance the pipeline, run:"
+  echo "  /gate approve $GATE_ID"
+  echo ""
+  echo "Senior-dev will NOT start until that command is run."
+  # Do NOT close the gate. Do NOT flip phase. Stop here.
+  exit 0
+fi
+
+# gate-policy: auto (default) — close the gate as before
 bd close "$GATE_ID" "Plan approved — unblocking senior-dev" 2>/dev/null || \
   sed -i '' "s/| gate:plan | .*/| gate:plan | approved |/" .great_cto/tasks.md 2>/dev/null
 

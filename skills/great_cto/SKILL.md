@@ -414,7 +414,7 @@ Architecture ready → docs/architecture/ARCH-<feature>.md
 • [decision 1]  • [decision 2]  • [decision 3]
 Proceed? [yes/no]  ← auto-expires in 72h if no response
 ```
-If CTO does not respond within 72h → mark gate:arch as rejected, tell CTO: "gate:arch expired — pipeline paused. Say 'approve arch' to resume or 'cancel' to drop." Do NOT auto-proceed past a gate.
+If CTO does not respond within 72h → mark gate:arch as rejected, tell CTO: "gate:arch expired — pipeline paused. Say 'approve arch' (or under `gate-policy: explicit`, run `/gate approve <id>`) to resume, or 'cancel' to drop." Do NOT auto-proceed past a gate.
 
 **Step 1b — PM (sonnet):** Spawn `great_cto-pm` after gate:arch is approved. Skip for `project_size: nano`.
 
