@@ -9,7 +9,7 @@ per feature; agents do the rest.
 |---|---|
 | **Daily** | `/inbox` what needs attention · `/digest` weekly digest · `/doctor` health · `/resume` continue from HANDOFF.md · `/save` snapshot session |
 | **Pipeline** | `/start` bootstrap project · `/audit` audit existing code · `/review` PR review · `/poc` proof of concept · `/promote` POC → prod |
-| **Ops** | `/oncall` rotation · `/ownership` matrix · `/rfc` decisions · `/release` release notes · `/sec` security · `/cost` LLM spend · `/burn` SLO burn |
+| **Ops** | `/oncall` rotation · `/ownership` matrix · `/rfc` decisions · `/release` release notes · `/sec` security · `/cost` LLM spend · `/burn` SLO burn · `/gate` explicit gate approval |
 | **Memory** | `/learn` extract patterns · `/crystallize` promote to global · `/migrate` schema |
 | **Agents** | `/agent-review` performance · `/agent-retire` retire |
 | **Help** | `/help` this card · `/help commands` just the table · `/help board` admin URL |

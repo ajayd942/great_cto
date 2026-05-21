@@ -35,7 +35,7 @@ great_cto · type /<command> in Claude Code
 
 Daily       /inbox · /digest · /doctor · /resume · /save
 Pipeline    /start · /audit · /review · /poc · /promote
-Ops         /oncall · /ownership · /rfc · /release · /sec · /cost · /burn
+Ops         /oncall · /ownership · /rfc · /release · /sec · /cost · /burn · /gate
 Memory      /learn · /crystallize · /migrate
 Agents      /agent-review · /agent-retire
 

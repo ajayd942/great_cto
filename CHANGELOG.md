@@ -6,6 +6,37 @@ All notable changes to great_cto are documented here.
 
 ## Unreleased
 
+### Added — `gate-policy: explicit` and `/gate` command
+
+Conversational chatter ("yes", "lgtm", "approve") could be misread by
+agents as gate approval, advancing the pipeline before the CTO actually
+intended. The fix decouples gate handoff from in-agent verbosity.
+
+- New PROJECT.md field `gate-policy: <auto|explicit>` (default `auto`).
+  Under `explicit`, agents never auto-close gates — they print the gate
+  ID and stop. The CTO must run `/gate approve <id>` to advance the
+  pipeline.
+- New `/gate` command: `approve <id>` | `block <id> <reason>` | `list` |
+  `status <id>`. Logs verdicts to `.great_cto/verdicts/gate.log`.
+- Gate-creating agents (`architect`, `pm`, `qa-engineer`) now print the
+  literal gate ID and the exact `/gate approve <id>` command in their
+  final report when `gate-policy: explicit`.
+- Gate-closing agents (`pm`, `security-officer`) check `gate-policy`
+  before calling `bd close` and refuse to close under `explicit`.
+- Gate-checking agents (`senior-dev`, `devops`) point the CTO to
+  `/gate approve <id>` (instead of `/inbox`) when a gate is open under
+  `explicit`.
+- `/migrate` backfills `gate-policy: auto` into existing PROJECT.md.
+- `/help` and `docs/help-card.md` list `/gate` under Ops.
+
+This is **orthogonal to `approval-level`** — set them independently.
+Recommended for fintech/healthcare/web3 archetypes: `approval-level:
+strict` + `gate-policy: explicit` gives the standard 3-gate flow with
+zero in-agent chatter but a hard wall at every handoff.
+
+No breaking changes — default `gate-policy: auto` preserves prior
+behavior.
+
 ### Fixed — empty memory files / board memory tab
 
 The board's memory tab showed blank files even after heavy multi-pass

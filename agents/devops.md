@@ -167,8 +167,13 @@ step for that condition before proceeding to Step 1 (gate:ship check).
 1. **Verify gate:ship closed**:
    ```bash
    bd list --label gate | grep "gate:ship"
+   GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
    ```
-   Get the task ID from output, then `bd show <id>` — status must be `closed`. If not closed, stop: "gate:ship not approved yet. Security review pending."
+   Get the task ID from output, then `bd show <id>` — status must be `closed`. If not closed, stop with the right instruction:
+   - `gate-policy: explicit`: "gate:ship not approved. Run `/gate approve <SHIP_ID>` once security-officer has audited."
+   - `gate-policy: auto`: "gate:ship not approved yet. Security review pending."
+
+   Devops MUST NOT proceed until `bd show <id>` returns status `closed`. This is unconditional — no override exists for an open gate:ship in any policy.
 
    **SLO budget check** — before proceeding, read `.great_cto/slo-budget-current.md` for the service being deployed (if file exists). Format per `skills/great_cto/references/reliability.md`.
    ```bash

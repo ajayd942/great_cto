@@ -398,6 +398,7 @@ secondary: <type2>, <type3>
 packs: <auto-attached packs from Step 2c, comma-separated; empty if none>
 greenfield: <true|false>
 approval-level: <auto|gates-only|strict|expert|step-by-step>
+gate-policy: <auto|explicit>        # auto (default): agents auto-close gates on verbal approval. explicit: only `/gate approve <id>` advances.
 phase: implementation
 mode: <poc|mvp|production>          # ← required. PoC time-boxed throwaway; MVP first ship; production = ongoing.
 poc-deadline: <YYYY-MM-DD or empty> # ← required if mode=poc. Default: today + 14 days. /inbox flags as P0 when overdue.
@@ -460,6 +461,11 @@ Notes:
   ```
 
   MANDATORY archetypes (ai-system, commerce, web3, iot-embedded, regulated) → auto-upgrade from `review` to `strict` (CTO is notified).
+- `gate-policy:` — independent control for gate handoff discipline (orthogonal to `approval-level`).
+  - `auto` *(default)* — agents close gates as part of their own run after verbal CTO approval ("approve plan" / "yes" / "lgtm"). Current behavior.
+  - `explicit` — agents **never** close gates. They print the gate ID and stop; the CTO must run `/gate approve <id>` to advance the pipeline. Recommended for fintech, healthcare, web3, and any archetype where conversational chatter must not be misread as approval.
+
+  Set this independently of `approval-level`. Example: `approval-level: strict` + `gate-policy: explicit` gives the standard 3 gates with zero in-agent chatter but a hard wall at every handoff.
 - `packs:` auto-detected from archetype:
   - `ai-system` → `[ai-pack]`
   - `web3` → `[web3-pack]`

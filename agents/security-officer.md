@@ -707,19 +707,41 @@ For each `- [ ]` item: confirm implementation evidence exists (grep for the patt
 7. **Close or block gate:ship** (gate was created by qa-engineer):
    ```bash
    GATE_SHIP_ID=$(bd list --label gate --status open 2>/dev/null | grep "gate:ship" | awk '{print $1}' | head -1)
+   GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
    ```
-   - APPROVED: `bd close "$GATE_SHIP_ID" "Security approved — CSO-<date>.md"`
-   - BLOCKED: `bd update "$GATE_SHIP_ID" --status blocked --note "Security BLOCKED: <top finding>"` + create tasks per P0/P1 finding
 
-   **If bd unavailable**: update `.great_cto/tasks.md` gate:ship entry with `[APPROVED]` or `[BLOCKED: <reason>]`.
+   **Under `gate-policy: explicit`**, security-officer **must not** close
+   the gate on APPROVED — only block it if the audit fails. Approval is
+   the CTO's call via `/gate approve <id>`.
+
+   - APPROVED + `gate-policy: explicit`:
+     ```
+     Security audit APPROVED. To deploy, run:
+       /gate approve $GATE_SHIP_ID
+     devops will NOT run until that command executes.
+     ```
+     (Do not call `bd close`.)
+
+   - APPROVED + `gate-policy: auto`:
+     `bd close "$GATE_SHIP_ID" "Security approved — CSO-<date>.md"`
+
+   - BLOCKED (any policy): `bd update "$GATE_SHIP_ID" --status blocked --note "Security BLOCKED: <top finding>"` + create tasks per P0/P1 finding.
+     A blocked gate is a hard stop regardless of policy — the CTO addresses
+     the finding then re-runs security-officer.
+
+   **If bd unavailable**: update `.great_cto/tasks.md` gate:ship entry with `[APPROVED]` / `[NEEDS_GATE_APPROVAL]` / `[BLOCKED: <reason>]`.
 
 8. **Report**:
    ```
    Security audit complete → docs/security/CSO-<date>.md
    Decision: [APPROVED/BLOCKED] | Findings: P0:X P1:Y P2:Z
    Compliance: [type]-specific checklist [PASS/FAIL]
-   gate:ship: [closed/blocked]
+   gate:ship: [closed | awaiting /gate approve <ID> | blocked]
    ```
+
+   When `gate-policy: explicit` and decision is APPROVED, the line reads
+   `gate:ship: awaiting /gate approve <GATE_SHIP_ID>` and the CTO must
+   explicitly run that command before devops starts.
 
 ## CVE pattern → Risk register
 

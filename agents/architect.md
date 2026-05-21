@@ -763,6 +763,13 @@ Mark each item `- [ ]` so senior-dev and security-officer can tick off during re
    **If bd unavailable**: skip silently — the REQ checklist in the ARCH doc is the fallback trace.
 
 7. **Report**:
+
+   Resolve `gate-policy` and the actual `gate:arch` ID first:
+   ```bash
+   GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
+   GATE_ARCH_ID=$(bd list --label gate --status open 2>/dev/null | grep "gate:arch" | awk '{print $1}' | head -1)
+   ```
+
    ```
    Architecture ready → docs/architecture/ARCH-<feature>.md
    Key decisions:
@@ -771,11 +778,16 @@ Mark each item `- [ ]` so senior-dev and security-officer can tick off during re
    • [decision 3]
    Requirements: N items (qa-engineer will verify each)
    Beads tasks: [N] created
+   gate:arch created (ID: $GATE_ARCH_ID)
 
    Next: PM agent will produce a Gantt plan with estimates and agent allocation.
-   After gate:plan approval → senior-dev starts implementation.
-   Proceed with implementation? [yes/no]
    ```
+
+   Then, based on `GATE_POLICY`:
+   - `auto` (default): "After gate:arch approval → PM runs next. Proceed with implementation? [yes/no]"
+   - `explicit`: "PM will NOT run until you explicitly run: `/gate approve $GATE_ARCH_ID`. Verbal approval ('yes' / 'lgtm') does not advance the pipeline under gate-policy: explicit."
+
+   Print the literal `$GATE_ARCH_ID` value so the CTO can copy the command.
 
    **Pipeline handoff to PM** (unless `project_size: nano`):
    After CTO confirms architecture, the PM agent runs next. It reads this ARCH doc
