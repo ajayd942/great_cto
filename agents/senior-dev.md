@@ -323,6 +323,35 @@ Schema: `skills/great_cto/references/knowledge-extraction.md`
 
    Substitute the literal `$ARCH_GATE_ID` value in the message. Only proceed when no open gate:arch exists for this feature.
 
+1c. **Verify pm has run — gate:plan must exist** (skip for `nano`):
+   ```bash
+   PLAN_GATE=$(bd list --label gate 2>/dev/null | grep "gate:plan" | head -1)
+   ```
+   If no `gate:plan` exists in any status (open / closed / blocked) → **stop**. The pm agent has not run, which means there is no PLAN-<slug>.md, no dependency graph, no agent allocation, no parallelism analysis.
+
+   Tell CTO:
+   ```
+   STOP: gate:plan not found for this feature.
+
+   The pm agent has not been invoked. Without it, there is no plan
+   document — task ordering, parallelism, and agent allocation are
+   undefined. Senior-dev should not start implementation blind.
+
+   Per skills/great_cto/SKILL.md § Step 1b: pm runs after gate:arch
+   is approved, and is only skipped for project_size: nano.
+
+   Current project_size: $PROJECT_SIZE.
+
+   Fix: invoke the pm agent now. It will read docs/architecture/
+   ARCH-<feature>.md and produce docs/plans/PLAN-<feature>.md + gate:plan.
+   Then re-invoke senior-dev.
+   ```
+   Exit. Do not claim a task.
+
+   If `gate:plan` exists but is still open → **stop** with: "gate:plan exists but is not yet approved. Run `/gate approve <gate-plan-id>` (or `/inbox` under `gate-policy: auto`) before senior-dev claims Pool A."
+
+   Only proceed when `gate:plan` exists AND is closed.
+
 2. **Claim**: `bd ready` → `bd show <id>` → `bd claim <id>`
 3. **Branch**: Create feature branch before any code:
    ```bash

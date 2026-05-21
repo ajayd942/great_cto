@@ -37,6 +37,47 @@ zero in-agent chatter but a hard wall at every handoff.
 No breaking changes — default `gate-policy: auto` preserves prior
 behavior.
 
+### Fixed — pipeline enforcement gaps (db-migration, pm, docs drift)
+
+Three latent gaps were causing real production-risk slips:
+
+1. **`db-migration-reviewer` was orphaned.** Its description claimed
+   it auto-activates when migration files are in the diff, but no agent
+   actually spawned it. The hand-off mentions in `data-platform-reviewer`,
+   `infra-reviewer`, and `enterprise-saas-reviewer` were passive and
+   never fire for fintech / healthcare / web-service archetypes — which
+   meant dangerous migrations (table drops, lock-heavy index adds, PII
+   columns) shipped without a specialist review.
+2. **`pm` was silently skippable.** SKILL.md mandates pm for
+   `project_size >= small`, but `senior-dev` only checked `gate:arch`,
+   not `gate:plan`. If an orchestrator skipped pm, senior-dev started
+   without a PLAN doc, dependency graph, or agent allocation.
+3. **Documentation drift was invisible.** `/release docs` could detect
+   stale harness files but was user-invoked only — drift accumulated
+   until someone noticed manually.
+
+Fixes (no new agents):
+
+- **`agents/code-reviewer.md` Step 0a**: detect migration diff
+  (`migrations/`, `alembic/versions/`, `db/migrate/`, `prisma/migrations/`,
+  `flyway`, `knex/migrations/`) and require `db-migration-reviewer` to
+  return PASS before code-reviewer can emit PASS. Migration verdict is
+  surfaced in the CR report's Summary section.
+- **`agents/senior-dev.md` Step 1c**: hard-block if `gate:plan` does not
+  exist for `project_size != nano`. Converts silent-skip into an explicit
+  STOP with remediation instructions. Also blocks if `gate:plan` exists
+  but is still open.
+- **`agents/devops.md` Step 1.5**: pre-deploy harness drift check.
+  Compares mtime of README / CHANGELOG / ADRs / ARCH docs / runbooks
+  against newest code-file mtime since last release tag. Surfaces drifted
+  files for CTO awareness. Informational by default; under
+  `gate-policy: explicit` requires acknowledgment before /gate approve.
+  Mtime-based for speed — deeper semantic check is still `/release docs`.
+
+No breaking changes — these are *added* gates. Projects that were
+previously passing continue to pass (no migrations = no spawn, gate:plan
+exists in normal flow, no docs = no drift surfaced).
+
 ### Fixed — empty memory files / board memory tab
 
 The board's memory tab showed blank files even after heavy multi-pass

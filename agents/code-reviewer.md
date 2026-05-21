@@ -173,6 +173,41 @@ instead. If no diff resolves, emit BLOCKED — there is nothing to review.
 Identify the feature slug from `docs/architecture/ARCH-*.md` (most recent) or
 the open Beads `feature-*` label.
 
+### Step 0a: Migration safety pre-check (MANDATORY)
+
+If the diff touches database migrations, **invoke `db-migration-reviewer`
+before completing this review**. Migrations are runtime risk (lock duration,
+data loss, irreversible drops) that diff-level review misses by design — the
+specialist agent owns this.
+
+```bash
+MIGRATION_HIT=$(git diff "$BASE"...HEAD --name-only 2>/dev/null | \
+  grep -E '(^|/)(migrations|alembic/versions|db/migrate|prisma/migrations|flyway|knex/migrations)/.*\.(sql|py|ts|js|rb)$' | head -5)
+
+if [ -n "$MIGRATION_HIT" ]; then
+  echo "Migration files in diff — db-migration-reviewer required:"
+  echo "$MIGRATION_HIT"
+  echo ""
+  echo "ACTION: Spawn db-migration-reviewer subagent. Wait for its verdict."
+  echo "  - If PASS → continue this review."
+  echo "  - If BLOCK → propagate BLOCK; do not emit PASS on code review."
+  # Subagent invocation is performed by the orchestrating Claude in response
+  # to this signal. Do NOT proceed to Step 1 with PASS until the migration
+  # verdict is in.
+fi
+```
+
+The db-migration-reviewer writes `docs/migrations/MIGRATE-<slug>-<date>.md`.
+Reference it in the Summary section of the review report under "Migration
+safety: [PASS/BLOCK] — see MIGRATE-<slug>.md". If the migration review
+returns BLOCK, code-reviewer's overall VERDICT must be FAIL regardless of
+other findings.
+
+This wiring replaces the old hand-off-only model (where db-migration-reviewer
+was listed in some archetype reviewers' "Hands off to" sections but never
+actually spawned). Now any feature with a migration triggers it,
+regardless of archetype.
+
 ### Step 0b: Skill catalog browse
 
 Read `~/.great_cto/skills-registry.json` →
@@ -225,6 +260,7 @@ suggestion — not "consider refactoring" but "extract lines 40-58 into
 
 ## Summary
 <2-3 sentences: overall craft quality, headline concern, verdict.>
+Migration safety: <PASS | BLOCK | N/A — no migrations in diff> (see docs/migrations/MIGRATE-<slug>.md if applicable)
 
 ## Critical
 - `path/file.ext:LINE` — <finding>. Fix: <concrete suggestion>.
