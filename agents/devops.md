@@ -196,6 +196,72 @@ step for that condition before proceeding to Step 1 (gate:ship check).
    fi
    ```
 
+1.5. **Documentation drift check (pre-deploy)**:
+
+   Detect harness files (README, ADRs, ARCH, runbooks, CHANGELOG, key
+   docs/ markdown) that are stale relative to the changes this deploy
+   ships. Drift is informational by default but escalates under
+   `gate-policy: explicit`.
+
+   ```bash
+   GATE_POLICY=$(grep "^gate-policy:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "auto")
+   PREV_TAG=$(git tag --sort=-version:refname 2>/dev/null | head -2 | tail -1)
+   [ -z "$PREV_TAG" ] && PREV_TAG=$(git rev-list --max-parents=0 HEAD 2>/dev/null)
+
+   # Code files changed since last release
+   CODE_CHANGED=$(git diff "$PREV_TAG"...HEAD --name-only 2>/dev/null | \
+     grep -vE '\.(md|txt|json|lock|yml|yaml)$' | head -50)
+
+   # Harness files that should track those changes
+   HARNESS_CANDIDATES=$(find . -maxdepth 3 \
+     \( -name "README.md" -o -name "CHANGELOG.md" -o -name "AGENTS.md" \
+        -o -name "CLAUDE.md" -o -path "./docs/architecture/*.md" \
+        -o -path "./docs/decisions/*.md" -o -path "./docs/runbooks/*.md" \
+        -o -path "./docs/reliability/*.md" \) \
+     -not -path "./node_modules/*" -not -path "./.git/*" 2>/dev/null)
+
+   # A harness file is "drifted" if its mtime is older than the most-recent
+   # code change since last release. Fast heuristic, not perfect; misses
+   # cases where someone updated the doc but the content is wrong.
+   if [ -n "$CODE_CHANGED" ]; then
+     NEWEST_CODE_EPOCH=$(echo "$CODE_CHANGED" | xargs -I{} stat -f %m {} 2>/dev/null | sort -n | tail -1)
+     [ -z "$NEWEST_CODE_EPOCH" ] && NEWEST_CODE_EPOCH=$(echo "$CODE_CHANGED" | xargs -I{} stat -c %Y {} 2>/dev/null | sort -n | tail -1)
+     DRIFT_HITS=""
+     for f in $HARNESS_CANDIDATES; do
+       [ -f "$f" ] || continue
+       HARNESS_EPOCH=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0)
+       if [ "$HARNESS_EPOCH" -lt "$NEWEST_CODE_EPOCH" ]; then
+         DRIFT_HITS="${DRIFT_HITS}${f}\n"
+       fi
+     done
+     if [ -n "$DRIFT_HITS" ]; then
+       echo "Documentation drift detected (older than newest code change since $PREV_TAG):"
+       printf "%b" "$DRIFT_HITS" | sed 's/^/  /'
+       echo ""
+       echo "Run /release docs for a full drift report with reasons."
+       if [ "$GATE_POLICY" = "explicit" ]; then
+         echo ""
+         echo "gate-policy: explicit — drift is informational, but the CTO"
+         echo "must acknowledge before /gate approve <ship-id>. Either:"
+         echo "  (a) update the drifted harness files, or"
+         echo "  (b) acknowledge in chat that drift is acceptable for this deploy."
+       fi
+     else
+       echo "✓ Harness files current with latest code changes."
+     fi
+   fi
+   ```
+
+   This check **does not auto-block**. It surfaces drift before the
+   production push so the CTO can decide whether to fix or accept. The
+   detection is mtime-based (fast, no false-block) — a deeper semantic
+   drift check is the job of `/release docs` which the CTO can run for
+   the full report.
+
+   For nano / small projects with sparse docs, this often outputs only
+   "✓ Harness files current" because there's little harness to drift.
+   That's the desired behavior — no noise on small projects.
+
 2. **Verify artifacts — requirements depend on project_size**:
    ```bash
    PROJECT_SIZE=$(grep "^project_size:" .great_cto/PROJECT.md 2>/dev/null | awk '{print $2}' || echo "medium")
