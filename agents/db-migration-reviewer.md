@@ -6,7 +6,7 @@ advisor-model: claude-opus-4-7
 advisor-max-uses: 1
 beta: advisor-tool-2026-03-01
 tools: Read, Write, Edit, Bash, Glob, Grep, WebFetch, advisor_20260301
-maxTurns: 20
+maxTurns: 30
 timeout: 600
 effort: HIGH
 memory: project
@@ -14,6 +14,11 @@ color: yellow
 skills:
   - archetype-review-base
   - superpowers:receiving-code-review
+  - superpowers:verification-before-completion
+  - supabase-postgres-best-practices
+  - postgresql-table-design
+  - pre-mortem
+  - skeptical-triage
   - prose-style
 applies_to: [web-service, commerce, enterprise, data-platform, fintech, regulated, web-app]
 ---
@@ -72,6 +77,54 @@ Read each file in `$MIGRATIONS`. Classify each operation:
 | `TRUNCATE` | **Critical** | Irreversible |
 | `UPDATE` (data migration) | High | Row-level lock duration × table size |
 | `DELETE` (data migration) | High | Row-level lock duration × table size |
+| `ADD FOREIGN KEY` (without `NOT VALID`) | **High** | Full table lock for validation scan |
+| `ADD FOREIGN KEY ... NOT VALID` then `VALIDATE CONSTRAINT` | Low | SHARE UPDATE EXCLUSIVE only |
+| `ADD COLUMN ... DEFAULT <volatile>()` (e.g. `now()`, `gen_random_uuid()`) | **High** | Full table rewrite even on PG11+ |
+| `ADD COLUMN ... DEFAULT <constant>` (PG11+) | Low | Metadata-only |
+| `RENAME COLUMN` / `RENAME TABLE` (single step) | **Critical** | Breaks running app instances — always wrong without dual-write |
+| `ALTER TYPE ... ADD VALUE` (enum) | Medium (PG12+) / **High** (pre-PG12) | Non-transactional pre-12; partial commit possible |
+| `ATTACH PARTITION` | Medium | ACCESS EXCLUSIVE on parent; brief if child has matching constraint |
+| `VACUUM FULL` / `REINDEX` (non-CONCURRENTLY) | **Critical** | ACCESS EXCLUSIVE for duration |
+| `CREATE INDEX CONCURRENTLY` inside a transaction | **Critical** | Fails at runtime — Postgres rejects it |
+
+---
+
+---
+
+## Step 1b: Migration tool detection
+
+Different tools have different rollback conventions and irreversibility semantics. Detect the tool in use, since the right rollback shape depends on it:
+
+```bash
+# Alembic (Python)
+test -f alembic.ini && echo "tool: alembic — expect upgrade() + downgrade() in each revision"
+
+# Flyway (Java/SQL)
+ls db/migration/V*__*.sql 2>/dev/null | head -1 && echo "tool: flyway — V__ migrations are forward-only; rollback requires U__ undo migrations (Flyway Teams)"
+
+# Liquibase
+test -f changelog.xml -o -f db/changelog/db.changelog-master.xml && echo "tool: liquibase — expect <rollback> tag per changeset"
+
+# Rails / ActiveRecord
+ls db/migrate/*.rb 2>/dev/null | head -1 && echo "tool: rails — expect change/up+down; irreversible! marker for destructive ops"
+
+# Django
+grep -rln "django.db.migrations" "$MIGRATIONS" 2>/dev/null | head -1 && echo "tool: django — RunPython requires reverse_code; otherwise irreversible"
+
+# Knex (Node)
+ls migrations/*_*.js migrations/*_*.ts 2>/dev/null | head -1 && grep -l "exports.up\|exports.down" 2>/dev/null && echo "tool: knex — expect exports.up + exports.down"
+
+# Prisma
+test -f prisma/schema.prisma && echo "tool: prisma — migrations are forward-only; rollback is a new migration"
+
+# golang-migrate
+ls migrations/*.up.sql 2>/dev/null | head -1 && echo "tool: golang-migrate — expect paired .up.sql and .down.sql"
+```
+
+**Implications:**
+- **Flyway / Prisma / golang-migrate**: forward-only or paired-file. Missing `.down` / undo migration is a **HIGH** finding unless explicitly marked irreversible.
+- **Alembic / Rails / Knex / Liquibase**: each revision must implement its inverse. Empty `down()` / `downgrade()` for non-trivial change is a **HIGH** finding.
+- **Django RunPython**: `reverse_code=migrations.RunPython.noop` for non-trivial data migrations is a **HIGH** finding — log the intent.
 
 ---
 
@@ -136,6 +189,58 @@ ALTER TABLE users ALTER COLUMN age TYPE BIGINT;
 
 **Right**: add new column → dual-write → backfill → cut over → drop old.
 
+### Adding a foreign key (Postgres)
+**Wrong** (acquires full table lock to validate every row):
+```sql
+ALTER TABLE orders ADD CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id);
+```
+
+**Right** (two-phase — second statement holds only SHARE UPDATE EXCLUSIVE):
+```sql
+ALTER TABLE orders ADD CONSTRAINT fk_orders_user
+  FOREIGN KEY (user_id) REFERENCES users(id) NOT VALID;
+ALTER TABLE orders VALIDATE CONSTRAINT fk_orders_user;
+```
+
+### Volatile DEFAULT on ADD COLUMN
+**Wrong** (even PG11+ rewrites the table when default is volatile):
+```sql
+ALTER TABLE events ADD COLUMN trace_id UUID NOT NULL DEFAULT gen_random_uuid();
+```
+
+**Right** (constant default is fast; volatile default needs backfill):
+```sql
+-- Step 1: add nullable, no default
+ALTER TABLE events ADD COLUMN trace_id UUID;
+-- Step 2: backfill in batches from the app side
+-- Step 3: add default for new rows, then SET NOT NULL
+ALTER TABLE events ALTER COLUMN trace_id SET DEFAULT gen_random_uuid();
+ALTER TABLE events ALTER COLUMN trace_id SET NOT NULL;
+```
+
+### Renaming a column or table
+**Always wrong in a single migration** (breaks all running app instances mid-deploy):
+```sql
+ALTER TABLE users RENAME COLUMN email TO email_address;
+```
+
+**Right** (expand–contract over two deploys):
+1. Add new column → dual-write from app
+2. Backfill old → new
+3. Switch reads to new column
+4. Stop writing old column
+5. Separate later migration: drop old column
+
+### CREATE INDEX CONCURRENTLY transaction guard
+`CREATE INDEX CONCURRENTLY` **cannot run inside a transaction block** and many migration tools wrap statements implicitly. Flag any of these as a hard failure:
+- Alembic without `op.execute("COMMIT")` or `transactional_ddl = False`
+- Rails without `disable_ddl_transaction!`
+- Django without `atomic = False` on the Migration class
+- Raw SQL inside `BEGIN; ... COMMIT;`
+
+### Enum value addition (Postgres pre-12)
+`ALTER TYPE ... ADD VALUE` is **non-transactional before PG12** — if the surrounding migration fails, the enum value remains and the next retry hits a duplicate. Require either PG ≥ 12, or splitting the `ADD VALUE` into its own migration.
+
 Check each migration for these patterns. Flag violations.
 
 ---
@@ -187,11 +292,28 @@ PII columns added without encryption annotation → **High** finding.
 # Check for raw SQL that bypasses ORM safety
 grep -rn "execute.*\"\|raw_sql\|connection.execute\|cursor.execute" "$MIGRATIONS" 2>/dev/null | grep -v "CONCURRENTLY\|CREATE INDEX" | head -10
 
-# Check for missing transaction wrapping (DDL in Postgres is transactional; MySQL is not)
-grep -c "BEGIN\|transaction\|atomic" "$MIGRATIONS" 2>/dev/null || echo "0 explicit transactions"
+# HARD CHECK: CREATE INDEX CONCURRENTLY inside a transaction (Postgres will reject at runtime)
+for f in $MIGRATIONS; do
+  if grep -qiE "CREATE\s+INDEX\s+CONCURRENTLY" "$f" 2>/dev/null; then
+    # Tool-specific guards that disable the implicit transaction wrap
+    HAS_GUARD=$(grep -cE "disable_ddl_transaction!|transactional[_ ]?ddl\s*=\s*False|atomic\s*=\s*False|op\.execute\(['\"]COMMIT" "$f" 2>/dev/null || echo 0)
+    if [ "$HAS_GUARD" = "0" ]; then
+      echo "BLOCKING: $f — CREATE INDEX CONCURRENTLY without transaction-disable guard. Postgres rejects this at runtime."
+    fi
+  fi
+done
+
+# lock_timeout / statement_timeout recommendation
+for f in $MIGRATIONS; do
+  if grep -qiE "ALTER\s+TABLE|CREATE\s+INDEX|ADD\s+CONSTRAINT" "$f" 2>/dev/null; then
+    if ! grep -qiE "lock_timeout|statement_timeout" "$f" 2>/dev/null; then
+      echo "SUGGEST: $f — wrap DDL in SET lock_timeout = '2s' to fail fast instead of stalling the whole DB"
+    fi
+  fi
+done
 ```
 
-**MySQL / MariaDB**: DDL is NOT transactional — a failed migration cannot be rolled back at DB level. Flag this if `$DB_ENGINE` = mysql.
+**MySQL / MariaDB**: DDL is NOT transactional — a failed migration cannot be rolled back at DB level. Flag this if `$DB_ENGINE` = mysql. Recommend online-schema-change tooling (`gh-ost`, `pt-online-schema-change`, PlanetScale rewind) for tables > 1M rows.
 
 ---
 
@@ -249,17 +371,64 @@ Frame as: "For {DB engine} {version}, does {operation} acquire {lock type}? Is {
 - [ ] Table size on prod estimated: {N rows / GB}
 - [ ] Maintenance window required: {yes/no} — {duration}
 
+## Operational guardrails
+
+Recommend (and verify in each DDL statement) the following session settings:
+- `SET lock_timeout = '2s'` — fail fast instead of stalling every query in the DB
+- `SET statement_timeout = '10min'` — bound the worst case
+- For MySQL: use `gh-ost` / `pt-online-schema-change` / PlanetScale rewind when table > 1M rows
+
 ## Sign-off
 
 Verdict: **SAFE TO DEPLOY** / **BLOCKED: {reason}**
+
+Reviewer: db-migration-reviewer
+Sidecar: `MIGRATE-{slug}-{date}.json` (machine-readable verdict for devops gating)
 ```
+
+---
+
+## Step 9: Emit JSON sidecar
+
+Write `docs/migrations/MIGRATE-{slug}-{date}.json` alongside the markdown so devops can gate on it without parsing prose:
+
+```json
+{
+  "schema": "great_cto.migration-review/v1",
+  "slug": "{slug}",
+  "date": "{ISO 8601}",
+  "verdict": "SAFE | BLOCKED | NO_OP",
+  "db_engine": "{engine}",
+  "tool": "{alembic|flyway|liquibase|rails|django|knex|prisma|golang-migrate|raw-sql}",
+  "migrations": [
+    {
+      "file": "{path}",
+      "operations": ["ADD COLUMN", "CREATE INDEX CONCURRENTLY"],
+      "risk": "low|medium|high|critical",
+      "zdt_pattern_correct": true,
+      "rollback_exists": true,
+      "rollback_irreversible": false
+    }
+  ],
+  "blocking_findings": [
+    { "file": "{path}", "severity": "high", "reason": "FK added without NOT VALID — full table lock" }
+  ],
+  "suggestions": [
+    { "file": "{path}", "reason": "wrap DDL in SET lock_timeout = '2s'" }
+  ],
+  "staging_validated": false,
+  "table_sizes_known": true
+}
+```
+
+Devops/CI consumes this: a `verdict != "SAFE"` blocks the deploy gate; `staging_validated: false` requires `bd human` approval.
 
 ---
 
 ## DONE / BLOCKED format
 
-**SAFE**: `DONE: MIGRATE-${SLUG}-${DATE}.md written. ${N} migrations reviewed. Safe to deploy. ZDT patterns correct. Rollback verified.`
+**SAFE**: `DONE: MIGRATE-${SLUG}-${DATE}.md + MIGRATE-${SLUG}-${DATE}.json written. ${N} migrations reviewed. Safe to deploy. ZDT patterns correct. Rollback verified.`
 
-**BLOCKED**: `BLOCKED: ${FILE} — ${REASON}. Fix required before deploy. See MIGRATE-${SLUG}-${DATE}.md § Blocking findings.`
+**BLOCKED**: `BLOCKED: ${FILE} — ${REASON}. Fix required before deploy. See MIGRATE-${SLUG}-${DATE}.md § Blocking findings. Sidecar verdict=BLOCKED.`
 
 **NO-OP**: `INFO: no migration files detected in this branch. db-migration-reviewer not needed.`
